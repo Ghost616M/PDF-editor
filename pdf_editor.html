@@ -1,0 +1,1831 @@
+# DIG PDF Editor Pro - Workspace Mobile Estabilizado
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DIG PDF Editor Pro</title>
+    <!-- Tailwind CSS para design responsivo moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts para tipografia limpa -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- PDF-Lib para manipulação de arquivos PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <!-- PDF.js para renderização precisa de PDF em Canvas HTML5 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #e2e8f0;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .loading-overlay {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(4px);
+        }
+
+        .pdf-page-render {
+            touch-action: none;
+            display: block;
+            user-select: none;
+            z-index: 10;
+            position: relative;
+        }
+        /* Estilo base dos Widgets Flutuantes com prioridade de toque estável */
+        .interactive-widget-window {
+            position: absolute;
+            background: transparent;
+            border: 2px dashed #6366f1;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+            touch-action: none; /* Impede gestos padrão do browser no mobile */
+        }
+        .widget-text-box {
+
+            border-color: #ec4899; /* Textos = Rosa */
+        }
+        .widget-shape-box {
+            border-color: #f59e0b; /* Formas = Laranja */
+        }
+        .widget-image-box {
+            border-color: #3b82f6; /* Imagens = Azul */
+        }
+        .interactive-widget-content {
+            flex: 1;
+            position: relative;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            user-select: none;
+            overflow: hidden;
+
+            pointer-events: none; /* Cliques passam direto para as alças ou fundo */
+        }
+        .interactive-widget-content img,
+        .interactive-widget-content .text-el,
+        .interactive-widget-content svg {
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            user-select: none;
+            display: block;
+        }
+        /* Botões de Alça Flutuante com Pointer Events robustos */
+        .widget-handle-move {
+            position: absolute;
+            top: -16px;
+            left: -16px;
+
+            width: 32px;
+            height: 32px;
+            background: #6366f1;
+            color: white;
+            border-radius: 50%;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+            z-index: 160;
+            touch-action: none;
+            user-select: none;
+        }
+        .widget-text-box .widget-handle-move {
+            background: #ec4899;
+        }
+
+        .widget-shape-box .widget-handle-move {
+            background: #f59e0b;
+        }
+        .widget-image-box .widget-handle-move {
+            background: #3b82f6;
+        }
+        .widget-handle-close {
+            position: absolute;
+            top: -16px;
+            right: -16px;
+            width: 32px;
+            height: 32px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+            z-index: 160;
+            touch-action: none;
+            user-select: none;
+        }
+        .widget-handle-resize {
+            position: absolute;
+            bottom: -16px;
+            right: -16px;
+            width: 32px;
+            height: 32px;
+            background: #4f46e5;
+            color: white;
+            border-radius: 50%;
+            cursor: se-resize;
+            display: flex;
+            align-items: center;
+
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+            z-index: 160;
+            touch-action: none;
+            user-select: none;
+        }
+        .widget-text-box .widget-handle-resize {
+            background: #db2777;
+        }
+        .widget-shape-box .widget-handle-resize {
+            background: #d97706;
+        }
+        .widget-image-box .widget-handle-resize {
+            background: #2563eb;
+        }
+        /* Desativação cirúrgica de eventos quando o pincel está ativo */
+        .brush-active-mode .interactive-widget-window {
+
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md z-10 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 p-2 rounded-lg text-white font-bold tracking-wider text-xl shadow-inner">DIG</div>
+            <div>
+                <h1 class="text-lg font-bold leading-none">PDF Editor Pro</h1>
+                <p class="text-xs text-slate-400 mt-0.5">Workspace desenvolvido por Manoel Carlos!</p>
+            </div>
+        </div>
+        
+        <!-- Controles Globais Superiores -->
+        <div class="flex items-center space-x-4">
+            <!-- Botões de Retroceder e Avançar -->
+
+            <div class="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 space-x-1">
+                <button id="btn-undo" disabled class="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed rounded transition" title="Retroceder Alteração Completa (Undo)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg>
+                </button>
+                <button id="btn-redo" disabled class="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed rounded transition" title="Avançar Alteração Completa (Redo)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.934 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.334-4z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.334-4z" /></svg>
+                </button>
+            </div>
+
+            <label for="pdf-upload" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition shadow cursor-pointer flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                <span>Carregar PDF</span>
+            </label>
+            <input type="file" id="pdf-upload" accept="application/pdf" class="hidden">
+
+            <button id="btn-open-download-modal" disabled class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium text-sm transition shadow flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                <span>Exportar / Salvar</span>
+            </button>
+
+        </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <div class="flex flex-1 overflow-hidden" id="workspace-root">
+        
+        <!-- Left Sidebar: Tools Panel -->
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col overflow-y-auto custom-scroll shrink-0 shadow-sm">
+            
+            <div class="p-4 bg-slate-50 border-b border-slate-200">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Documento</span>
+                    <span id="status-badge" class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Aguardando</span>
+                </div>
+                <div id="file-details" class="text-sm font-medium mt-2 text-slate-700 truncate">Insira um arquivo para começar...</div>
+            </div>
+
+            <div class="p-4 space-y-6">
+                
+
+                <!-- MÓDULO: Camada de Imagem / Assinatura -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center space-x-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span>Camada de Imagem / Assinatura</span>
+                    </h3>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                        <div>
+                            <label for="image-upload" id="label-img-upload" class="w-full text-center block bg-white hover:bg-slate-100 text-slate-700 border border-dashed border-slate-300 rounded px-3 py-2 text-xs font-medium cursor-pointer transition">
+                               Selecionar Imagem...
+                            </label>
+                            <input type="file" id="image-upload" accept="image/png, image/jpeg, image/jpg" class="hidden" disabled>
+                        </div>
+                        <button id="btn-save-all-images" class="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 rounded transition shadow-sm hidden">
+                            Gravar todas as imagens no PDF
+                        </button>
+                    </div>
+                </section>
+
+
+                <!-- Action Tool 1: Edit / Replace Existing Text -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center space-x-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        <span>Substituir Texto Existente</span>
+                    </h3>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Largura Ocultadora da Máscara (px):</label>
+                            <input type="number" id="edit-mask-width" value="120" min="10" class="w-full text-sm border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Novo Texto Substituto:</label>
+                            <input type="text" id="edit-text-new" placeholder="Digite o novo texto..." class="w-full text-sm border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none">
+                        </div>
+                        <button id="btn-replace-text" disabled class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 text-white text-xs font-semibold py-2 rounded transition shadow-sm">
+                            Substituir Texto
+                        </button>
+                    </div>
+
+                </section>
+
+                <!-- Action Tool 2: Add Content - WIDGETS DE TEXTO -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-pink-600 flex items-center space-x-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        <span>Adicionar Novo Texto Flutuante</span>
+                    </h3>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Conteúdo do Texto:</label>
+                            <input type="text" id="text-input" placeholder="Ex: Assinatura, Nota, Data..." class="w-full text-sm border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Estilo Fonte:</label>
+                            <select id="text-font-weight" class="w-full text-sm border border-slate-300 rounded px-2 py-1.5 focus:outline-none bg-white">
+                                <option value="normal">Normal</option>
+                                <option value="bold" selected>Negrito</option>
+                            </select>
+
+                        </div>
+                        <button id="btn-add-text" disabled class="w-full bg-pink-600 hover:bg-pink-500 disabled:bg-slate-300 text-white text-xs font-semibold py-2 rounded transition shadow-sm">
+                            Criar Bloco de Texto na Tela
+                        </button>
+                        <button id="btn-save-all-texts" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2 rounded transition shadow-sm hidden">
+                            Gravar todos os textos no PDF
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Action Tool 3: Drawing Manual Brush & SHAPES/FORMAS -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-amber-600 flex items-center space-x-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9 2v-4zm0 0l9-2-9-2v4zm0 0h-9" /></svg>
+                        <span>Pincel & Formas Vetoriais</span>
+                    </h3>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                        
+                        <div class="grid grid-cols-5 gap-2">
+
+                            <button id="btn-toggle-brush" disabled class="col-span-4 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold py-2 px-2 rounded-lg transition flex items-center justify-center space-x-1">
+                                <span id="brush-status-dot" class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                                <span id="brush-btn-text">Pincel Desativado</span>
+                            </button>
+                            <button id="btn-color-picker" disabled class="col-span-1 bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded-lg flex items-center justify-center transition" title="Conta-Gotas Contínuo">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            </button>
+                        </div>
+
+                        <div class="bg-white p-2.5 rounded border border-slate-200 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-semibold text-slate-600">Paleta de Cores:</label>
+                                <div class="flex items-center space-x-2">
+                                    <div id="current-color-preview" class="w-5 h-5 rounded border border-slate-400 bg-black"></div>
+                                    <input type="color" id="global-color-picker" value="#000000" class="w-6 h-6 p-0 border-0 cursor-pointer bg-transparent">
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-6 gap-1.5 pt-1">
+
+                                <button class="color-preset-btn w-full h-6 rounded-full border border-slate-300 bg-black" data-color="#000000"></button>
+                                <button class="color-preset-btn w-full h-6 rounded-full border border-slate-300 bg-red-600" data-color="#dc2626"></button>
+                                <button class="color-preset-btn w-full h-6 rounded-full border border-slate-300 bg-blue-600" data-color="#2563eb"></button>
+                                <button class="color-preset-btn w-full h-6 rounded-full border border-slate-300 bg-green-600" data-color="#16a34a"></button>
+                                <button class="color-preset-btn w-full h-6 rounded-full border border-slate-300 bg-yellow-400" data-color="#facc15"></button>
+                                <button class="color-preset-btn w-full h-6 rounded-full border border-slate-400 bg-white flex items-center justify-center text-[10px] text-slate-400 font-bold" data-color="#ffffff">✕</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Tam. Risco Pincel:</label>
+                            <input type="number" id="brush-size" value="6" min="2" max="50" class="w-full text-sm border border-slate-300 rounded px-2.5 py-1.5">
+                        </div>
+                        <button id="btn-save-draw" disabled class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white text-xs font-semibold py-1.5 rounded transition">
+                            Salvar Risco Livre
+                        </button>
+                        
+                        <div class="h-px bg-slate-300 my-2"></div>
+                        
+
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide">Inserir Forma Interativa</label>
+                            <div class="space-y-2 bg-white p-2.5 rounded border border-slate-200">
+                                <div>
+                                    <label class="block text-[10px] font-medium text-slate-500 mb-1">Tipo de Elemento:</label>
+                                    <select id="shape-type-select" class="w-full text-xs border border-slate-300 rounded px-2 py-1.5 bg-white font-medium focus:outline-none">
+                                        <option value="rectangle_empty">Retângulo (Vazio/Contorno)</option>
+                                        <option value="circle_empty">Círculo (Vazio/Contorno)</option>
+                                        <option value="line">Linha Reta</option>
+                                        <option value="arrow">Seta Direcional</option>
+                                        <option value="rectangle_filled">Retângulo Preenchido</option>
+                                        <option value="circle_filled">Círculo Preenchido</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-medium text-slate-500 mb-1">Espessura Inicial:</label>
+                                    <input type="number" id="shape-thickness-input" value="4" min="1" max="15" class="w-full text-xs border border-slate-300 rounded px-2 py-1.5">
+                                </div>
+                            </div>
+
+                            
+                            <button id="btn-add-shape" disabled class="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white text-xs font-semibold py-2 rounded transition shadow-sm">
+                                Criar Forma na Tela
+                            </button>
+                            <button id="btn-save-all-shapes" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2 rounded transition shadow-sm hidden">
+                                Gravar todas as formas no PDF
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Active Actions Summary -->
+            <div class="mt-auto border-t border-slate-200 p-4 bg-slate-50">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Histórico de Alterações:</div>
+                <div id="actions-log" class="text-xs text-slate-500 space-y-1 max-h-24 overflow-y-auto custom-scroll">
+                    <p class="italic text-slate-400">Nenhuma alteração realizada.</p>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Right Side: Real-Time Interactive Viewer Workspace -->
+        <main class="flex-1 bg-slate-300 flex flex-col justify-between items-center relative overflow-hidden">
+            
+            <!-- TABELA / MODAL COMPATÍVEL DE ESCOLHA DE NOME PARA DOWNLOAD DIRETO -->
+            <div id="download-modal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 hidden p-4 select-none">
+                <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-2 flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                        <span>Salvar Arquivo PDF</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4">Escolha um nome customizado para exportar seu documento diretamente:</p>
+                    
+                    <div class="bg-slate-50 border border-slate-300 rounded-lg flex items-center px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-500">
+                        <input type="text" id="input-filename-modal" value="DIG_PRO_Editado" class="w-full bg-transparent text-sm font-medium focus:outline-none text-slate-800">
+                        <span class="text-sm font-bold text-slate-400 select-none ml-1">.pdf</span>
+                    </div>
+                    
+
+                    <div class="grid grid-cols-2 gap-3 mt-5">
+                        <button id="btn-close-modal" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded-lg text-xs transition">Cancelar</button>
+                        <button id="btn-confirm-download" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg text-xs transition shadow-md">Confirmar e Baixar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Center Box -->
+            <div id="message-center" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 hidden">
+                <div id="message-box" class="bg-slate-900 text-white text-sm px-6 py-3 rounded-xl shadow-xl flex items-center space-x-3">
+                    <span id="message-text">Mensagem.</span>
+                </div>
+            </div>
+
+            <!-- Dynamic Loader Overlay -->
+            <div id="loader" class="loading-overlay absolute inset-0 z-40 flex flex-col items-center justify-center hidden">
+                <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mb-4"></div>
+                <p id="loader-text" class="text-sm font-semibold text-slate-700">Processando...</p>
+            </div>
+
+
+            <!-- PDF Viewer Workspace Container -->
+            <div id="workspace-scroll-container" class="w-full flex-1 overflow-auto custom-scroll p-8 flex items-start justify-center">
+                
+                <!-- Wrapper que isola o espaço relativo exato do Canvas para os Widgets Flutuantes -->
+                <div id="pdf-relative-wrapper" class="relative hidden bg-white shadow-2xl rounded border border-slate-400 select-none">
+                    <canvas id="pdf-render-canvas" class="pdf-page-render"></canvas>
+                    <!-- OS WIDGETS DE IMAGENS, TEXTOS E FORMAS GEOMÉTRICAS SERÃO INJETADOS DINAMICAMENTE AQUI DENTRO -->
+                </div>
+                
+                <!-- Initial Empty State -->
+                <div id="empty-state" class="text-center p-8 bg-white rounded-2xl shadow-sm border border-slate-300 max-w-md my-auto">
+                    <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1.0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-1">Nenhum documento carregado</h3>
+                    <p class="text-sm text-slate-500 mb-4">Insira o arquivo PDF e manipule camadas de textos, desenhos e formas livremente.</p>
+                </div>
+            </div>
+
+
+            <!-- Bottom Workspace Toolbar Control bar -->
+            <div class="w-full max-w-4xl bg-white rounded-xl border border-slate-200 p-3 mb-4 mx-4 flex items-center justify-between shadow-sm shrink-0">
+                <div class="flex items-center space-x-6 text-sm">
+                    <div>Páginas: <span id="info-total-pages" class="font-bold text-indigo-600">0</span></div>
+                    <div class="h-4 w-px bg-slate-300"></div>
+                    <div>Histórico (Passos): <span id="info-history-index" class="font-bold text-indigo-600">0</span>/<span id="info-history-total" class="font-bold text-slate-500">0</span></div>
+                </div>
+                <div id="workspace-tip-text" class="text-xs text-slate-500 font-medium">
+                    Modo Clique ativo: Clique na página para descobrir coordenadas.
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Application Business Logic JavaScript Architecture -->
+    <script>
+        // CONFIGURAÇÃO BLINDADA DO WORKER: Força desativação de Workers em iframes restritos de CSP
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+
+
+        let workspaceHistoryStack = [];
+        let currentHistoryIndex = -1;
+
+        let pdfDocInstance = null;
+        let loadedFileName = "";
+        let originalPageWidth = 0;
+        let originalPageHeight = 0;
+        let totalModificationsCount = 0;
+
+        let isBrushModeActive = false; 
+        let isColorPickerModeActive = false; 
+        let isDrawing = false;
+        let drawnLines = [];
+        let currentLinePdfPoints = [];
+
+        let activeTextWidgetsList = [];
+        let textWidgetCounter = 0;
+
+        let activeShapeWidgetsList = [];
+
+        let shapeWidgetCounter = 0;
+
+        let activeImageWidgetsList = [];
+        let imageWidgetCounter = 0;
+
+        // Referências do DOM
+        const workspaceRoot = document.getElementById('workspace-root');
+        const fileInput = document.getElementById('pdf-upload');
+        const imgInput = document.getElementById('image-upload');
+        const labelImgUpload = document.getElementById('label-img-upload');
+        const btnSaveAllImages = document.getElementById('btn-save-all-images');
+        const btnOpenDownloadModal = document.getElementById('btn-open-download-modal');
+        const btnAddText = document.getElementById('btn-add-text');
+        const btnSaveAllTexts = document.getElementById('btn-save-all-texts');
+        const btnAddShape = document.getElementById('btn-add-shape');
+        const btnSaveAllShapes = document.getElementById('btn-save-all-shapes');
+        const btnReplaceText = document.getElementById('btn-replace-text');
+        
+        const btnToggleBrush = document.getElementById('btn-toggle-brush');
+
+        const brushBtnText = document.getElementById('brush-btn-text');
+        const brushStatusDot = document.getElementById('brush-status-dot');
+        const btnColorPicker = document.getElementById('btn-color-picker');
+        const globalColorInput = document.getElementById('global-color-picker');
+        const colorPreviewBox = document.getElementById('current-color-preview');
+        
+        const btnSaveDraw = document.getElementById('btn-save-draw');
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+        const workspaceTipText = document.getElementById('workspace-tip-text');
+        
+        const statusBadge = document.getElementById('status-badge');
+        const fileDetails = document.getElementById('file-details');
+        const actionsLog = document.getElementById('actions-log');
+        const infoTotalPages = document.getElementById('info-total-pages');
+        const infoHistoryIndex = document.getElementById('info-history-index');
+        const infoHistoryTotal = document.getElementById('info-history-total');
+        const pdfRelativeWrapper = document.getElementById('pdf-relative-wrapper');
+        const emptyState = document.getElementById('empty-state');
+
+        const renderCanvas = document.getElementById('pdf-render-canvas');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+
+        // Modal de Download
+        const downloadModal = document.getElementById('download-modal');
+        const btnCloseModal = document.getElementById('btn-close-modal');
+        const btnConfirmDownload = document.getElementById('btn-confirm-download');
+        const inputFilenameModal = document.getElementById('input-filename-modal');
+
+        let lastCapturedPdfX = 50;
+        let lastCapturedPdfY = 700;
+
+        // Paleta presets
+        document.querySelectorAll('.color-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const selectedColor = btn.getAttribute('data-color');
+                globalColorInput.value = selectedColor;
+                colorPreviewBox.style.backgroundColor = selectedColor;
+
+            });
+        });
+
+        globalColorInput.addEventListener('input', (e) => {
+            colorPreviewBox.style.backgroundColor = e.target.value;
+        });
+
+        function showMessage(text, isError = false) {
+            const msgCenter = document.getElementById('message-center');
+            const msgBox = document.getElementById('message-box');
+            const msgText = document.getElementById('message-text');
+            
+            msgText.innerText = text;
+            msgBox.className = isError ? "bg-rose-600 text-white text-sm px-6 py-3 rounded-xl shadow-xl flex items-center space-x-3" : "bg-slate-900 text-white text-sm px-6 py-3 rounded-xl shadow-xl flex items-center space-x-3";
+            msgCenter.classList.remove('hidden');
+            setTimeout(() => { msgCenter.classList.add('hidden'); }, 3500);
+        }
+
+        function toggleLoader(show, text = "Processando PDF...") {
+
+            loaderText.innerText = text;
+            if(show) loader.classList.remove('hidden');
+            else loader.classList.add('hidden');
+        }
+
+        function clearVolatileWidgetsFromDom() {
+            document.querySelectorAll('.interactive-widget-window').forEach(el => el.remove());
+            activeTextWidgetsList = [];
+            activeShapeWidgetsList = [];
+            activeImageWidgetsList = [];
+            btnSaveAllTexts.classList.add('hidden');
+            btnSaveAllShapes.classList.add('hidden');
+            btnSaveAllImages.classList.add('hidden');
+        }
+
+        function updateWidgetsPointerState() {
+            if (isBrushModeActive || isColorPickerModeActive) {
+                workspaceRoot.classList.add('brush-active-mode');
+            } else {
+
+                workspaceRoot.classList.remove('brush-active-mode');
+            }
+        }
+
+        // MOTOR DE HISTÓRICO INTEGRAL
+        async function captureAndPushWorkspaceState() {
+            if (!pdfDocInstance) return;
+            try {
+                const savedPdfBytes = await pdfDocInstance.save();
+                
+                const serializedTexts = activeTextWidgetsList.map(t => ({
+                    text: t.text,
+                    color: t.color,
+                    isBold: t.isBold,
+                    top: t.element.style.top,
+                    left: t.element.style.left,
+                    width: t.element.style.width,
+                    height: t.element.style.height,
+                    fontSize: t.element.querySelector('.text-el').style.fontSize
+
+                }));
+
+                const serializedShapes = activeShapeWidgetsList.map(s => ({
+                    type: s.type,
+                    color: s.color,
+                    thickness: s.thickness,
+                    currentThickness: s.currentThickness,
+                    top: s.element.style.top,
+                    left: s.element.style.left,
+                    width: s.element.style.width,
+                    height: s.element.style.height,
+                    svgMarkup: s.element.querySelector('.interactive-widget-content').innerHTML
+                }));
+
+                const serializedImages = activeImageWidgetsList.map(imgObj => ({
+                    id: imgObj.id,
+                    top: imgObj.element.style.top,
+                    left: imgObj.element.style.left,
+                    width: imgObj.element.style.width,
+
+                    height: imgObj.element.style.height,
+                    src: imgObj.element.querySelector('img').src,
+                    rawBytes: new Uint8Array(imgObj.rawBytes)
+                }));
+
+                const fullWorkspaceSnapshot = {
+                    pdfBytes: savedPdfBytes,
+                    texts: serializedTexts,
+                    shapes: serializedShapes,
+                    images: serializedImages,
+                    drawnLines: JSON.parse(JSON.stringify(drawnLines))
+                };
+
+                if (currentHistoryIndex < workspaceHistoryStack.length - 1) {
+                    workspaceHistoryStack = workspaceHistoryStack.slice(0, currentHistoryIndex + 1);
+                }
+                
+                workspaceHistoryStack.push(fullWorkspaceSnapshot);
+                currentHistoryIndex++;
+
+                updateHistoryControlsUi();
+            } catch(hErr) {
+                console.error("Falha ao registrar histórico:", hErr);
+            }
+        }
+
+        function updateHistoryControlsUi() {
+            infoHistoryIndex.innerText = currentHistoryIndex + 1;
+            infoHistoryTotal.innerText = workspaceHistoryStack.length;
+            btnUndo.disabled = currentHistoryIndex <= 0;
+            btnRedo.disabled = currentHistoryIndex >= workspaceHistoryStack.length - 1;
+        }
+
+        async function applyWorkspaceSnapshotState(index) {
+            toggleLoader(true, "Restaurando snapshot do workspace...");
+            try {
+                const snapshot = workspaceHistoryStack[index];
+                pdfDocInstance = await PDFLib.PDFDocument.load(snapshot.pdfBytes);
+                clearVolatileWidgetsFromDom();
+
+                drawnLines = JSON.parse(JSON.stringify(snapshot.drawnLines));
+                await renderCurrentPdfPreview();
+
+                // Reconstrói Imagens simultâneas restauradas
+                snapshot.images.forEach(imgData => {
+                    imageWidgetCounter++;
+                    const widgetId = imgData.id || `img-widget-${imageWidgetCounter}`;
+
+                    const imgWidgetEl = document.createElement('div');
+                    imgWidgetEl.id = widgetId;
+                    imgWidgetEl.className = "interactive-widget-window widget-image-box";
+                    imgWidgetEl.style.width = imgData.width;
+                    imgWidgetEl.style.height = imgData.height;
+                    imgWidgetEl.style.top = imgData.top;
+                    imgWidgetEl.style.left = imgData.left;
+
+                    const moveHandle = document.createElement('div');
+                    moveHandle.className = "widget-handle-move";
+                    moveHandle.innerText = "✥";
+
+
+                    const closeHandle = document.createElement('div');
+                    closeHandle.className = "widget-handle-close";
+                    closeHandle.innerText = "✕";
+
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = "widget-handle-resize";
+                    resizeHandle.innerText = "⤡";
+
+                    const contentArea = document.createElement('div');
+                    contentArea.className = "interactive-widget-content";
+                    
+                    const imgPreview = document.createElement('img');
+                    imgPreview.src = imgData.src;
+                    
+                    contentArea.appendChild(imgPreview);
+                    imgWidgetEl.appendChild(moveHandle);
+                    imgWidgetEl.appendChild(closeHandle);
+                    imgWidgetEl.appendChild(contentArea);
+                    imgWidgetEl.appendChild(resizeHandle);
+
+
+                    pdfRelativeWrapper.appendChild(imgWidgetEl);
+                    attachPointerControlsToWidget(imgWidgetEl, moveHandle, resizeHandle);
+
+                    closeHandle.addEventListener('click', (e) => {
+                        imgWidgetEl.remove();
+                        activeImageWidgetsList = activeImageWidgetsList.filter(w => w.id !== widgetId);
+                        if (activeImageWidgetsList.length === 0) btnSaveAllImages.classList.add('hidden');
+                        captureAndPushWorkspaceState();
+                        e.stopPropagation();
+                    });
+
+                    activeImageWidgetsList.push({
+                        id: widgetId,
+                        element: imgWidgetEl,
+                        rawBytes: imgData.rawBytes
+                    });
+                });
+                if (activeImageWidgetsList.length > 0) btnSaveAllImages.classList.remove('hidden');
+
+
+                // Reconstrói Textos
+                snapshot.texts.forEach(tData => {
+                    textWidgetCounter++;
+                    const widgetId = `text-widget-${textWidgetCounter}`;
+                    
+                    const textWidgetEl = document.createElement('div');
+                    textWidgetEl.id = widgetId;
+                    textWidgetEl.className = "interactive-widget-window widget-text-box";
+                    textWidgetEl.style.width = tData.width;
+                    textWidgetEl.style.height = tData.height;
+                    textWidgetEl.style.top = tData.top;
+                    textWidgetEl.style.left = tData.left;
+
+                    const moveHandle = document.createElement('div');
+                    moveHandle.className = "widget-handle-move";
+                    moveHandle.innerText = "✥";
+
+                    const closeHandle = document.createElement('div');
+                    closeHandle.className = "widget-handle-close";
+
+                    closeHandle.innerText = "✕";
+
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = "widget-handle-resize";
+                    resizeHandle.innerText = "⤡";
+
+                    const contentArea = document.createElement('div');
+                    contentArea.className = "interactive-widget-content";
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.className = "text-el";
+                    textSpan.innerText = tData.text;
+                    textSpan.style.color = tData.color;
+                    textSpan.style.fontSize = tData.fontSize;
+                    textSpan.style.fontWeight = tData.isBold ? "700" : "400";
+                    
+                    contentArea.appendChild(textSpan);
+                    textWidgetEl.appendChild(moveHandle);
+                    textWidgetEl.appendChild(closeHandle);
+
+                    textWidgetEl.appendChild(contentArea);
+                    textWidgetEl.appendChild(resizeHandle);
+
+                    pdfRelativeWrapper.appendChild(textWidgetEl);
+                    attachPointerControlsToWidget(textWidgetEl, moveHandle, resizeHandle);
+
+                    closeHandle.addEventListener('click', () => {
+                        textWidgetEl.remove();
+                        activeTextWidgetsList = activeTextWidgetsList.filter(w => w.id !== widgetId);
+                        if (activeTextWidgetsList.length === 0) btnSaveAllTexts.classList.add('hidden');
+                        captureAndPushWorkspaceState();
+                    });
+
+                    activeTextWidgetsList.push({
+                        id: widgetId,
+                        element: textWidgetEl,
+                        text: tData.text,
+                        color: tData.color,
+                        isBold: tData.isBold
+
+                    });
+                });
+                if (activeTextWidgetsList.length > 0) btnSaveAllTexts.classList.remove('hidden');
+
+                // Reconstrói Formas
+                snapshot.shapes.forEach(sData => {
+                    shapeWidgetCounter++;
+                    const widgetId = `shape-widget-${shapeWidgetCounter}`;
+
+                    const shapeWidgetEl = document.createElement('div');
+                    shapeWidgetEl.id = widgetId;
+                    shapeWidgetEl.className = "interactive-widget-window widget-shape-box";
+                    shapeWidgetEl.style.width = sData.width;
+                    shapeWidgetEl.style.height = sData.height;
+                    shapeWidgetEl.style.top = sData.top;
+                    shapeWidgetEl.style.left = sData.left;
+
+                    const moveHandle = document.createElement('div');
+                    moveHandle.className = "widget-handle-move";
+
+                    moveHandle.innerText = "✥";
+
+                    const closeHandle = document.createElement('div');
+                    closeHandle.className = "widget-handle-close";
+                    closeHandle.innerText = "✕";
+
+                    const contentArea = document.createElement('div');
+                    contentArea.className = "interactive-widget-content w-full h-full";
+                    contentArea.innerHTML = sData.svgMarkup;
+
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = "widget-handle-resize";
+                    resizeHandle.innerText = "⤡";
+
+                    shapeWidgetEl.appendChild(moveHandle);
+                    shapeWidgetEl.appendChild(closeHandle);
+                    shapeWidgetEl.appendChild(contentArea);
+                    shapeWidgetEl.appendChild(resizeHandle);
+
+
+                    pdfRelativeWrapper.appendChild(shapeWidgetEl);
+
+                    activeShapeWidgetsList.push({
+                        id: widgetId,
+                        element: shapeWidgetEl,
+                        type: sData.type,
+                        color: sData.color,
+                        thickness: sData.thickness,
+                        currentThickness: sData.currentThickness
+                    });
+
+                    attachPointerControlsToWidget(shapeWidgetEl, moveHandle, resizeHandle);
+
+                    closeHandle.addEventListener('click', () => {
+                        shapeWidgetEl.remove();
+                        activeShapeWidgetsList = activeShapeWidgetsList.filter(s => s.id !== widgetId);
+                        if (activeShapeWidgetsList.length === 0) btnSaveAllShapes.classList.add('hidden');
+                        captureAndPushWorkspaceState();
+                    });
+
+                });
+                if (activeShapeWidgetsList.length > 0) btnSaveAllShapes.classList.remove('hidden');
+
+                updateWidgetsPointerState();
+                updateHistoryControlsUi();
+            } catch(rErr) {
+                console.error(rErr);
+                showMessage("Falha ao restabelecer histórico.", true);
+            } finally { toggleLoader(false); }
+        }
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            toggleLoader(true, "Carregando bytes estruturais do documento...");
+            loadedFileName = file.name;
+            
+            try {
+
+                const arrayBuffer = await file.arrayBuffer();
+                const initialBytes = new Uint8Array(arrayBuffer);
+                pdfDocInstance = await PDFLib.PDFDocument.load(initialBytes);
+                
+                workspaceHistoryStack = [];
+                currentHistoryIndex = -1;
+                drawnLines = [];
+                clearVolatileWidgetsFromDom();
+                
+                await captureAndPushWorkspaceState();
+                updateUiStateAfterLoad();
+                await renderCurrentPdfPreview();
+                showMessage("Documento importado com sucesso!");
+            } catch (error) {
+                console.error(error);
+                showMessage("Falha ao abrir o arquivo PDF.", true);
+            } finally { toggleLoader(false); }
+        });
+
+
+        function updateUiStateAfterLoad() {
+            const pageCount = pdfDocInstance.getPageCount();
+            infoTotalPages.innerText = pageCount;
+            
+            statusBadge.innerText = "Carregado";
+            statusBadge.className = "bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full";
+            fileDetails.innerText = loadedFileName;
+            
+            btnOpenDownloadModal.removeAttribute('disabled');
+            btnAddText.removeAttribute('disabled');
+            btnReplaceText.removeAttribute('disabled');
+            btnToggleBrush.removeAttribute('disabled');
+            btnColorPicker.removeAttribute('disabled');
+            btnSaveDraw.removeAttribute('disabled');
+            btnAddShape.removeAttribute('disabled');
+            imgInput.removeAttribute('disabled');
+            labelImgUpload.className = "w-full text-center block bg-white hover:bg-slate-100 text-indigo-600 border border-dashed border-indigo-300 rounded px-3 py-2 text-xs font-medium cursor-pointer transition";
+
+            emptyState.classList.add('hidden');
+
+            pdfRelativeWrapper.classList.remove('hidden');
+        }
+
+        // MOTOR DE VISUALIZAÇÃO: Usa decodificação direta via array em memória para ignorar CSP de Worker
+        async function renderCurrentPdfPreview() {
+            if (!pdfDocInstance) return;
+            try {
+                const pdfBytes = await pdfDocInstance.save();
+                // Passar o parâmetro de dados puro força o PDF.js a rodar na thread principal sem colapsar com CSP
+                const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
+                const pdfjsDoc = await loadingTask.promise;
+                
+                const page = await pdfjsDoc.getPage(1);
+                const viewport = page.getViewport({ scale: 1.3 });
+                const context = renderCanvas.getContext('2d');
+                
+                renderCanvas.height = viewport.height;
+                renderCanvas.width = viewport.width;
+                
+
+                const pdfPage = pdfDocInstance.getPages()[0];
+                const { width, height } = pdfPage.getSize();
+                originalPageWidth = width;
+                originalPageHeight = height;
+
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext).promise;
+                reapplyLocalCanvasDrawings();
+            } catch (error) {
+                console.error("Erro na renderização interna do PDF:", error);
+                showMessage("Erro visual ao processar páginas.", true);
+            }
+        }
+
+        function logAction(message) {
+
+            if (totalModificationsCount === 0) actionsLog.innerHTML = "";
+            totalModificationsCount++;
+            
+            const logItem = document.createElement('p');
+            logItem.className = "text-slate-700 font-medium truncate";
+            logItem.innerHTML = `<span class="text-indigo-600 font-bold">•</span> <span>${message}</span>`;
+            actionsLog.appendChild(logItem);
+            actionsLog.scrollTop = actionsLog.scrollHeight;
+        }
+
+        function attachPointerControlsToWidget(widgetEl, moveHandleEl, resizeHandleEl) {
+            if (!moveHandleEl || !resizeHandleEl) return;
+
+            moveHandleEl.addEventListener('pointerdown', (e) => {
+                isDraggingWidget = true;
+                activeMovingElement = widgetEl;
+                moveHandleEl.setPointerCapture(e.pointerId);
+                startX = e.clientX;
+                startY = e.clientY;
+
+                startLeft = parseInt(widgetEl.style.left, 10) || 0;
+                startTop = parseInt(widgetEl.style.top, 10) || 0;
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            moveHandleEl.addEventListener('pointermove', (e) => {
+                if (!isDraggingWidget || activeMovingElement !== widgetEl) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                widgetEl.style.left = (startLeft + dx) + 'px';
+                widgetEl.style.top = (startTop + dy) + 'px';
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            const stopDrag = (e) => {
+                if (isDraggingWidget && activeMovingElement === widgetEl) {
+                    isDraggingWidget = false;
+
+                    activeMovingElement = null;
+                    try { moveHandleEl.releasePointerCapture(e.pointerId); } catch(err){}
+                    captureAndPushWorkspaceState(); 
+                }
+            };
+            moveHandleEl.addEventListener('pointerup', stopDrag);
+            moveHandleEl.addEventListener('pointercancel', stopDrag);
+
+            resizeHandleEl.addEventListener('pointerdown', (e) => {
+                isResizingWidget = true;
+                activeResizingElement = widgetEl;
+                resizeHandleEl.setPointerCapture(e.pointerId);
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = parseInt(widgetEl.style.width, 10);
+                startHeight = parseInt(widgetEl.style.height, 10);
+                
+                const textInner = widgetEl.querySelector('.text-el');
+                if (textInner) {
+
+                    widgetEl.dataset.startFontSize = parseFloat(window.getComputedStyle(textInner).fontSize);
+                }
+                
+                const shapeId = widgetEl.id;
+                const shapeObj = activeShapeWidgetsList.find(s => s.id === shapeId);
+                if (shapeObj) {
+                    widgetEl.dataset.startThickness = shapeObj.thickness;
+                }
+                
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            resizeHandleEl.addEventListener('pointermove', (e) => {
+                if (!isResizingWidget || activeResizingElement !== widgetEl) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                
+                const newWidth = Math.max(40, startWidth + dx);
+
+                const newHeight = Math.max(30, startHeight + dy);
+                
+                widgetEl.style.width = newWidth + 'px';
+                widgetEl.style.height = newHeight + 'px';
+                
+                const ratio = newHeight / startHeight;
+                
+                const textInner = widgetEl.querySelector('.text-el');
+                if (textInner && widgetEl.dataset.startFontSize) {
+                    const calculatedFont = Math.max(8, Math.min(80, parseFloat(widgetEl.dataset.startFontSize) * ratio));
+                    textInner.style.fontSize = calculatedFont + 'px';
+                }
+                
+                const shapeId = widgetEl.id;
+                const shapeObj = activeShapeWidgetsList.find(s => s.id === shapeId);
+                
+                if (shapeObj && widgetEl.dataset.startThickness) {
+                    const baseThickness = parseFloat(widgetEl.dataset.startThickness);
+                    const newThickness = Math.max(1, Math.min(30, Math.round(baseThickness * ratio)));
+
+                    shapeObj.currentThickness = newThickness;
+                    
+                    const svgInnerPath = widgetEl.querySelector('svg path, svg rect, svg circle, svg line');
+                    if (svgInnerPath) {
+                        svgInnerPath.setAttribute('stroke-width', newThickness);
+                    }
+                }
+                
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            const stopResize = (e) => {
+                if (isResizingWidget && activeResizingElement === widgetEl) {
+                    isResizingWidget = false;
+                    activeResizingElement = null;
+                    try { resizeHandleEl.releasePointerCapture(e.pointerId); } catch(err){}
+                    captureAndPushWorkspaceState(); 
+                }
+
+            };
+            resizeHandleEl.addEventListener('pointerup', stopResize);
+            resizeHandleEl.addEventListener('pointercancel', stopResize);
+        }
+
+        // MOTOR DE GERAÇÃO DE MÚLTIPLAS IMAGENS
+        imgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            toggleLoader(true, "Otimizando imagem e criando camada...");
+            
+            const fileReader = new FileReader();
+            fileReader.onload = function(event) {
+                const base64DataUrl = event.target.result;
+                const img = new Image();
+                
+                img.onload = async function() {
+                    try {
+
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = img.naturalWidth || img.width;
+                        tempCanvas.height = img.naturalHeight || img.height;
+                        
+                        const ctx = tempCanvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        
+                        const normalizedDataUrl = tempCanvas.toDataURL('image/png');
+
+                        const base64BytesString = normalizedDataUrl.split(',')[1];
+                        const binaryString = window.atob(base64BytesString);
+                        const len = binaryString.length;
+                        const bytes = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+
+                        imageWidgetCounter++;
+                        const widgetId = `img-widget-${imageWidgetCounter}`;
+
+
+                        const imgWidgetEl = document.createElement('div');
+                        imgWidgetEl.id = widgetId;
+                        imgWidgetEl.className = "interactive-widget-window widget-image-box";
+                        imgWidgetEl.style.width = "160px";
+                        imgWidgetEl.style.height = "140px";
+                        
+                        const constellationOffset = (imageWidgetCounter % 5) * 20;
+                        imgWidgetEl.style.top = (50 + constellationOffset) + "px";
+                        imgWidgetEl.style.left = (50 + constellationOffset) + "px";
+
+                        const moveHandle = document.createElement('div');
+                        moveHandle.className = "widget-handle-move";
+                        moveHandle.innerText = "✥";
+
+                        const closeHandle = document.createElement('div');
+                        closeHandle.className = "widget-handle-close";
+                        closeHandle.innerText = "✕";
+
+                        const resizeHandle = document.createElement('div');
+
+                        resizeHandle.className = "widget-handle-resize";
+                        resizeHandle.innerText = "⤡";
+
+                        const contentArea = document.createElement('div');
+                        contentArea.className = "interactive-widget-content";
+                        
+                        const imgPreview = document.createElement('img');
+                        imgPreview.src = normalizedDataUrl;
+                        
+                        contentArea.appendChild(imgPreview);
+                        imgWidgetEl.appendChild(moveHandle);
+                        imgWidgetEl.appendChild(closeHandle);
+                        imgWidgetEl.appendChild(contentArea);
+                        imgWidgetEl.appendChild(resizeHandle);
+
+                        pdfRelativeWrapper.appendChild(imgWidgetEl);
+                        attachPointerControlsToWidget(imgWidgetEl, moveHandle, resizeHandle);
+
+                        closeHandle.addEventListener('click', (ev) => {
+
+                            imgWidgetEl.remove();
+                            activeImageWidgetsList = activeImageWidgetsList.filter(w => w.id !== widgetId);
+                            if (activeImageWidgetsList.length === 0) btnSaveAllImages.classList.add('hidden');
+                            captureAndPushWorkspaceState();
+                            ev.stopPropagation();
+                        });
+
+                        activeImageWidgetsList.push({
+                            id: widgetId,
+                            element: imgWidgetEl,
+                            rawBytes: bytes
+                        });
+
+                        btnSaveAllImages.classList.remove('hidden');
+                        imgInput.value = ""; 
+
+                        updateWidgetsPointerState();
+                        await captureAndPushWorkspaceState();
+                        showMessage("Nova camada de imagem adicionada!");
+
+                    } catch (innerErr) {
+                        console.error(innerErr);
+                        showMessage("Erro ao decodificar pixels da imagem.", true);
+                    } finally { toggleLoader(false); }
+                };
+                img.src = base64DataUrl;
+            };
+            fileReader.readAsDataURL(file);
+        });
+
+        // GRAVAÇÃO DE IMAGENS EM LOTE
+        btnSaveAllImages.addEventListener('click', async () => {
+            if (activeImageWidgetsList.length === 0) return;
+            toggleLoader(true, "Gravando todas as imagens no documento...");
+            try {
+                const page = pdfDocInstance.getPages()[0];
+
+                for (const imgWidget of activeImageWidgetsList) {
+                    const el = imgWidget.element;
+
+                    const imgNode = el.querySelector('img');
+
+                    const widgetWidth = parseInt(el.style.width, 10);
+                    const widgetHeight = parseInt(el.style.height, 10);
+                    const widgetLeft = parseInt(el.style.left, 10);
+                    const widgetTop = parseInt(el.style.top, 10);
+
+                    const imgWidth = imgNode.naturalWidth || 1;
+                    const imgHeight = imgNode.naturalHeight || 1;
+                    const imgRatio = imgWidth / imgHeight;
+                    const widgetRatio = widgetWidth / widgetHeight;
+
+                    let realImgWidth = widgetWidth;
+                    let realImgHeight = widgetHeight;
+                    let realImgLeft = widgetLeft;
+                    let realImgTop = widgetTop;
+
+                    if (widgetRatio > imgRatio) {
+                        realImgWidth = widgetHeight * imgRatio;
+
+                        realImgLeft = widgetLeft + (widgetWidth - realImgWidth) / 2;
+                    } else {
+                        realImgHeight = widgetWidth / imgRatio;
+                        realImgTop = widgetTop + (widgetHeight - realImgHeight) / 2;
+                    }
+
+                    const pdfX = (realImgLeft / renderCanvas.width) * originalPageWidth;
+                    const pdfY = originalPageHeight - (((realImgTop + realImgHeight) / renderCanvas.height) * originalPageHeight);
+                    const pdfWidth = (realImgWidth / renderCanvas.width) * originalPageWidth;
+                    const pdfHeight = (realImgHeight / renderCanvas.height) * originalPageHeight;
+
+                    const embeddedImageInstance = await pdfDocInstance.embedPng(imgWidget.rawBytes);
+                    page.drawImage(embeddedImageInstance, { x: pdfX, y: pdfY, width: pdfWidth, height: pdfHeight });
+                    
+                    el.remove();
+                }
+
+                activeImageWidgetsList = [];
+                btnSaveAllImages.classList.add('hidden');
+
+
+                logAction("Imagens salvas em lote");
+                await renderCurrentPdfPreview();
+                await captureAndPushWorkspaceState();
+                showMessage("Todas as imagens foram fixadas!");
+            } catch (err) {
+                console.error(err);
+                showMessage("Falha crítica ao fundir lote de imagens.", true);
+            } finally { toggleLoader(false); }
+        });
+
+        // TEXTOS
+        btnAddText.addEventListener('click', async () => {
+            const txtValue = document.getElementById('text-input').value.trim();
+            if (!txtValue) {
+                showMessage("Por favor, digite um texto primeiro.", true);
+                return;
+            }
+
+            textWidgetCounter++;
+
+            const widgetId = `text-widget-${textWidgetCounter}`;
+            const selectedColor = globalColorInput.value;
+            const isBold = document.getElementById('text-font-weight').value === 'bold';
+
+            const textWidgetEl = document.createElement('div');
+            textWidgetEl.id = widgetId;
+            textWidgetEl.className = "interactive-widget-window widget-text-box";
+            textWidgetEl.style.width = "180px";
+            textWidgetEl.style.height = "45px";
+            textWidgetEl.style.top = "60px";
+            textWidgetEl.style.left = "60px";
+
+            const moveHandle = document.createElement('div');
+            moveHandle.className = "widget-handle-move";
+            moveHandle.innerText = "✥";
+
+            const closeHandle = document.createElement('div');
+            closeHandle.className = "widget-handle-close";
+            closeHandle.innerText = "✕";
+
+
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = "widget-handle-resize";
+            resizeHandle.innerText = "⤡";
+
+            const contentArea = document.createElement('div');
+            contentArea.className = "interactive-widget-content";
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = "text-el";
+            textSpan.innerText = txtValue;
+            textSpan.style.color = selectedColor;
+            textSpan.style.fontSize = "16px";
+            textSpan.style.fontWeight = isBold ? "700" : "400";
+            
+            contentArea.appendChild(textSpan);
+            textWidgetEl.appendChild(moveHandle);
+            textWidgetEl.appendChild(closeHandle);
+            textWidgetEl.appendChild(contentArea);
+            textWidgetEl.appendChild(resizeHandle);
+
+
+            pdfRelativeWrapper.appendChild(textWidgetEl);
+            attachPointerControlsToWidget(textWidgetEl, moveHandle, resizeHandle);
+
+            closeHandle.addEventListener('click', () => {
+                textWidgetEl.remove();
+                activeTextWidgetsList = activeTextWidgetsList.filter(w => w.id !== widgetId);
+                if (activeTextWidgetsList.length === 0) btnSaveAllTexts.classList.add('hidden');
+                captureAndPushWorkspaceState();
+            });
+
+            activeTextWidgetsList.push({
+                id: widgetId,
+                element: textWidgetEl,
+                text: txtValue,
+                color: selectedColor,
+                isBold: isBold
+            });
+
+            btnSaveAllTexts.classList.remove('hidden');
+
+            document.getElementById('text-input').value = "";
+            
+            updateWidgetsPointerState();
+            await captureAndPushWorkspaceState();
+            showMessage("Bloco de texto criado na tela!");
+        });
+
+        btnSaveAllTexts.addEventListener('click', async () => {
+            if (activeTextWidgetsList.length === 0) return;
+            toggleLoader(true, "Gravando textos estruturais...");
+            try {
+                const page = pdfDocInstance.getPages()[0];
+                for (const textWidget of activeTextWidgetsList) {
+                    const el = textWidget.element;
+                    const widgetLeft = parseInt(el.style.left, 10);
+                    const widgetTop = parseInt(el.style.top, 10);
+                    const widgetWidth = parseInt(el.style.width, 10);
+                    const widgetHeight = parseInt(el.style.height, 10);
+
+
+                    const textSpan = el.querySelector('.text-el');
+                    const currentOnScreenFontSize = parseFloat(window.getComputedStyle(textSpan).fontSize || 16);
+
+                    const pdfX = (widgetLeft / renderCanvas.width) * originalPageWidth;
+                    const pdfY = originalPageHeight - (((widgetTop + (widgetHeight * 0.75)) / renderCanvas.height) * originalPageHeight);
+                    const pdfFontSize = (currentOnScreenFontSize / renderCanvas.height) * originalPageHeight;
+
+                    const colorHex = textWidget.color;
+                    const r = parseInt(colorHex.slice(1, 3), 16) / 255;
+                    const g = parseInt(colorHex.slice(3, 5), 16) / 255;
+                    const b = parseInt(colorHex.slice(5, 7), 16) / 255;
+
+                    page.drawText(textWidget.text, { x: pdfX, y: pdfY, size: pdfFontSize, color: PDFLib.rgb(r, g, b) });
+                    el.remove();
+                }
+                activeTextWidgetsList = [];
+                btnSaveAllTexts.classList.add('hidden');
+                logAction("Textos flutuantes consolidados");
+                await renderCurrentPdfPreview();
+
+                await captureAndPushWorkspaceState();
+                showMessage("Textos salvos no arquivo!");
+            } catch (err) { console.error(err); } finally { toggleLoader(false); }
+        });
+
+        // FORMAS VETORIAIS
+        btnAddShape.addEventListener('click', async () => {
+            shapeWidgetCounter++;
+            const widgetId = `shape-widget-${shapeWidgetCounter}`;
+            const selectedType = document.getElementById('shape-type-select').value;
+            const chosenColor = globalColorInput.value;
+            const borderThickness = parseInt(document.getElementById('shape-thickness-input').value) || 4;
+
+            const shapeWidgetEl = document.createElement('div');
+            shapeWidgetEl.id = widgetId;
+            shapeWidgetEl.className = "interactive-widget-window widget-shape-box";
+            
+            if (selectedType === 'line' || selectedType === 'arrow') {
+                shapeWidgetEl.style.width = "140px";
+
+                shapeWidgetEl.style.height = "40px";
+            } else {
+                shapeWidgetEl.style.width = "140px";
+                shapeWidgetEl.style.height = "100px";
+            }
+            shapeWidgetEl.style.top = "120px";
+            shapeWidgetEl.style.left = "120px";
+
+            const moveHandle = document.createElement('div');
+            moveHandle.className = "widget-handle-move";
+            moveHandle.innerText = "✥";
+
+            const closeHandle = document.createElement('div');
+            closeHandle.className = "widget-handle-close";
+            closeHandle.innerText = "✕";
+
+            const contentArea = document.createElement('div');
+            contentArea.className = "interactive-widget-content w-full h-full";
+
+
+            let svgMarkup = "";
+            if (selectedType === 'rectangle_empty') {
+                svgMarkup = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="4" y="4" width="92" height="92" fill="none" stroke="${chosenColor}" stroke-width="${borderThickness}" /></svg>`;
+            } else if (selectedType === 'rectangle_filled') {
+                svgMarkup = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="0" y="0" width="100" height="100" fill="${chosenColor}" fill-opacity="0.4" stroke="${chosenColor}" stroke-width="1" /></svg>`;
+            } else if (selectedType === 'circle_empty') {
+                svgMarkup = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><circle cx="50" cy="50" r="44" fill="none" stroke="${chosenColor}" stroke-width="${borderThickness}" /></svg>`;
+            } else if (selectedType === 'circle_filled') {
+                svgMarkup = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><circle cx="50" cy="50" r="49" fill="${chosenColor}" fill-opacity="0.4" stroke="${chosenColor}" stroke-width="1" /></svg>`;
+            } else if (selectedType === 'line') {
+                svgMarkup = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="2" y1="2" x2="98" y2="98" stroke="${chosenColor}" stroke-width="${borderThickness}" /></svg>`;
+            } else if (selectedType === 'arrow') {
+                svgMarkup = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M 4 50 L 92 50 M 76 30 L 94 50 L 76 70" fill="none" stroke="${chosenColor}" stroke-width="${borderThickness}" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+            }
+
+            contentArea.innerHTML = svgMarkup;
+
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = "widget-handle-resize";
+
+            resizeHandle.innerText = "⤡";
+
+            shapeWidgetEl.appendChild(moveHandle);
+            shapeWidgetEl.appendChild(closeHandle);
+            shapeWidgetEl.appendChild(contentArea);
+            shapeWidgetEl.appendChild(resizeHandle);
+
+            pdfRelativeWrapper.appendChild(shapeWidgetEl);
+            
+            activeShapeWidgetsList.push({
+                id: widgetId,
+                element: shapeWidgetEl,
+                type: selectedType,
+                color: chosenColor,
+                thickness: borderThickness,
+                currentThickness: borderThickness 
+            });
+
+            attachPointerControlsToWidget(shapeWidgetEl, moveHandle, resizeHandle);
+
+
+            closeHandle.addEventListener('click', () => {
+                shapeWidgetEl.remove();
+                activeShapeWidgetsList = activeShapeWidgetsList.filter(s => s.id !== widgetId);
+                if (activeShapeWidgetsList.length === 0) btnSaveAllShapes.classList.add('hidden');
+                captureAndPushWorkspaceState();
+            });
+
+            btnSaveAllShapes.classList.remove('hidden');
+            
+            updateWidgetsPointerState();
+            await captureAndPushWorkspaceState();
+            showMessage("Forma criada! Controles ativos.");
+        });
+
+        btnSaveAllShapes.addEventListener('click', async () => {
+            if (activeShapeWidgetsList.length === 0) return;
+            toggleLoader(true, "Injetando elementos gráficos vetoriais...");
+            
+            try {
+
+                const page = pdfDocInstance.getPages()[0];
+
+                for (const shapeWidget of activeShapeWidgetsList) {
+                    const el = shapeWidget.element;
+                    const widgetLeft = parseInt(el.style.left, 10);
+                    const widgetTop = parseInt(el.style.top, 10);
+                    const widgetWidth = parseInt(el.style.width, 10);
+                    const widgetHeight = parseInt(el.style.height, 10);
+
+                    const pdfX1 = (widgetLeft / renderCanvas.width) * originalPageWidth;
+                    const pdfY1 = originalPageHeight - ((widgetTop / renderCanvas.height) * originalPageHeight);
+                    const pdfX2 = ((widgetLeft + widgetWidth) / renderCanvas.width) * originalPageWidth;
+                    const pdfY2 = originalPageHeight - (((widgetTop + widgetHeight) / renderCanvas.height) * originalPageHeight);
+                    
+                    const thicknessFactor = shapeWidget.currentThickness * (originalPageWidth / renderCanvas.width);
+
+                    const colorHex = shapeWidget.color;
+                    const r = parseInt(colorHex.slice(1, 3), 16) / 255;
+                    const g = parseInt(colorHex.slice(3, 5), 16) / 255;
+
+                    const b = parseInt(colorHex.slice(5, 7), 16) / 255;
+                    const pdfColor = PDFLib.rgb(r, g, b);
+
+                    if (shapeWidget.type === 'rectangle_filled' || shapeWidget.type === 'rectangle_empty') {
+                        page.drawRectangle({
+                            x: pdfX1,
+                            y: pdfY2,
+                            width: pdfX2 - pdfX1,
+                            height: pdfY1 - pdfY2,
+                            color: shapeWidget.type === 'rectangle_filled' ? pdfColor : undefined,
+                            borderColor: pdfColor, 
+                            borderWidth: shapeWidget.type === 'rectangle_empty' ? thicknessFactor : 0
+                        });
+                    } else if (shapeWidget.type === 'circle_filled' || shapeWidget.type === 'circle_empty') {
+                        const pdfWidth = pdfX2 - pdfX1;
+                        const pdfHeight = pdfY1 - pdfY2;
+                        const centerX = pdfX1 + (pdfWidth / 2);
+                        const centerY = pdfY2 + (pdfHeight / 2);
+                        page.drawEllipse({
+
+                            x: centerX,
+                            y: centerY,
+                            xScale: pdfWidth / 2,
+                            yScale: pdfHeight / 2,
+                            color: shapeWidget.type === 'circle_filled' ? pdfColor : undefined,
+                            borderColor: pdfColor, 
+                            borderWidth: shapeWidget.type === 'circle_empty' ? thicknessFactor : 0
+                        });
+                    } else if (shapeWidget.type === 'line') {
+                        page.drawLine({
+                            start: { x: pdfX1, y: pdfY1 },
+                            end: { x: pdfX2, y: pdfY2 }, 
+                            thickness: thicknessFactor,
+                            color: pdfColor
+                        });
+                    } else if (shapeWidget.type === 'arrow') {
+                        const middleY = pdfY2 + ((pdfY1 - pdfY2) / 2);
+                        
+                        page.drawLine({
+
+                            start: { x: pdfX1, y: middleY },
+                            end: { x: pdfX2, y: middleY },
+                            thickness: thicknessFactor,
+                            color: pdfColor
+                        });
+                        
+                        const arrowheadLength = Math.max(8, thicknessFactor * 3.5); 
+                        
+                        page.drawLine({
+                            start: { x: pdfX2, y: middleY },
+                            end: { x: pdfX2 - arrowheadLength, y: middleY + (arrowheadLength * 0.5) },
+                            thickness: thicknessFactor,
+                            color: pdfColor
+                        });
+                        page.drawLine({
+                            start: { x: pdfX2, y: middleY },
+                            end: { x: pdfX2 - arrowheadLength, y: middleY - (arrowheadLength * 0.5) },
+                            thickness: thicknessFactor,
+                            color: pdfColor
+
+                        });
+                    }
+                    el.remove();
+                }
+
+                activeShapeWidgetsList = [];
+                btnSaveAllShapes.classList.add('hidden');
+
+                logAction("Formas estruturais salvas");
+                await renderCurrentPdfPreview();
+                await captureAndPushWorkspaceState();
+                showMessage("Elementos gráficos gravados!");
+            } catch (err) {
+                console.error(err);
+                showMessage("Erro ao salvar elementos.", true);
+            } finally { toggleLoader(false); }
+        });
+
+        // PINCEL E CONTA-GOTAS
+
+        btnToggleBrush.addEventListener('click', () => {
+            isBrushModeActive = !isBrushModeActive;
+            if (isBrushModeActive) {
+                isColorPickerModeActive = false; 
+                btnColorPicker.className = "col-span-1 bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded-lg flex items-center justify-center transition";
+                btnToggleBrush.className = "col-span-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-2 rounded-lg transition flex items-center justify-center space-x-1";
+                brushBtnText.innerText = "Pincel ATIVADO";
+                brushStatusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+                renderCanvas.style.cursor = "crosshair";
+            } else {
+                btnToggleBrush.className = "col-span-4 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold py-2 px-2 rounded-lg transition flex items-center justify-center space-x-1";
+                brushBtnText.innerText = "Pincel Desativado";
+                brushStatusDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+                renderCanvas.style.cursor = "default";
+            }
+            updateWidgetsPointerState();
+        });
+
+        btnColorPicker.addEventListener('click', () => {
+
+            isColorPickerModeActive = !isColorPickerModeActive;
+            if (isColorPickerModeActive) {
+                isBrushModeActive = false; 
+                btnToggleBrush.className = "col-span-4 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold py-2 px-2 rounded-lg transition flex items-center justify-center space-x-1";
+                brushBtnText.innerText = "Pincel Desativado";
+                brushStatusDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+                btnColorPicker.className = "col-span-1 bg-amber-500 hover:bg-amber-600 text-white border border-amber-600 rounded-lg flex items-center justify-center transition animate-pulse";
+                renderCanvas.style.cursor = "copy";
+            } else {
+                btnColorPicker.className = "col-span-1 bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded-lg flex items-center justify-center transition";
+                renderCanvas.style.cursor = "default";
+            }
+            updateWidgetsPointerState();
+        });
+
+        function getCanvasCoordsFromPointer(e) {
+            const rect = renderCanvas.getBoundingClientRect();
+            return {
+                canvasX: ((e.clientX - rect.left) / rect.width) * renderCanvas.width,
+
+                canvasY: ((e.clientY - rect.top) / rect.height) * renderCanvas.height
+            };
+        }
+
+        function handlePointerDown(e) {
+            if (!pdfDocInstance) return;
+            const { canvasX, canvasY } = getCanvasCoordsFromPointer(e);
+            
+            lastCapturedPdfX = Math.round((canvasX / renderCanvas.width) * originalPageWidth);
+            lastCapturedPdfY = Math.round(originalPageHeight - ((canvasY / renderCanvas.height) * originalPageHeight));
+            
+            if (isColorPickerModeActive) {
+                try {
+                    const context = renderCanvas.getContext('2d');
+                    const imgData = context.getImageData(Math.floor(canvasX), Math.floor(canvasY), 1, 1).data;
+                    const hexColor = `#${imgData[0].toString(16).padStart(2, '0')}${imgData[1].toString(16).padStart(2, '0')}${imgData[2].toString(16).padStart(2, '0')}`;
+                    globalColorInput.value = hexColor;
+                    colorPreviewBox.style.backgroundColor = hexColor;
+                    showMessage(`Cor copiada: ${hexColor.toUpperCase()}`);
+
+                } catch (pErr) { console.error(pErr); }
+                e.preventDefault();
+                return;
+            }
+
+            if (isBrushModeActive) {
+                isDrawing = true;
+                renderCanvas.setPointerCapture(e.pointerId);
+                currentLinePdfPoints = [{ x: lastCapturedPdfX, y: lastCapturedPdfY }];
+                
+                const context = renderCanvas.getContext('2d');
+                context.strokeStyle = globalColorInput.value;
+                context.lineWidth = parseInt(document.getElementById('brush-size').value) || 6;
+                context.lineCap = 'round';
+                context.lineJoin = 'round';
+                context.beginPath();
+                context.moveTo(canvasX, canvasY);
+                context.lineTo(canvasX + 0.1, canvasY);
+                context.stroke();
+
+            } else {
+                showMessage(`Coordenadas via clique: X: ${lastCapturedPdfX}, Y: ${lastCapturedPdfY}`);
+            }
+            e.preventDefault();
+        }
+
+        function handlePointerMove(e) {
+            if (!isBrushModeActive || !isDrawing) return;
+            const { canvasX, canvasY } = getCanvasCoordsFromPointer(e);
+            const pdfX = Math.round((canvasX / renderCanvas.width) * originalPageWidth);
+            const pdfY = Math.round(originalPageHeight - ((canvasY / renderCanvas.height) * originalPageHeight));
+            
+            currentLinePdfPoints.push({ x: pdfX, y: pdfY });
+            
+            const context = renderCanvas.getContext('2d');
+            context.strokeStyle = globalColorInput.value;
+            context.lineWidth = parseInt(document.getElementById('brush-size').value) || 6;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+
+            
+            const lastPdfPt = currentLinePdfPoints[currentLinePdfPoints.length - 2];
+            const prevX = (lastPdfPt.x / originalPageWidth) * renderCanvas.width;
+            const prevY = ((originalPageHeight - lastPdfPt.y) / originalPageHeight) * renderCanvas.height;
+            
+            context.beginPath();
+            context.moveTo(prevX, prevY);
+            context.lineTo(canvasX, canvasY);
+            context.stroke();
+            e.preventDefault();
+        }
+
+        function handlePointerUp(e) {
+            if (isDrawing) {
+                isDrawing = false;
+                try { renderCanvas.releasePointerCapture(e.pointerId); } catch(err){}
+                if (currentLinePdfPoints.length > 0) {
+                    drawnLines.push({
+                        points: currentLinePdfPoints,
+
+                        color: globalColorInput.value,
+                        size: parseInt(document.getElementById('brush-size').value) || 6
+                    });
+                    captureAndPushWorkspaceState(); 
+                }
+            }
+        }
+
+        renderCanvas.addEventListener('pointerdown', handlePointerDown);
+        renderCanvas.addEventListener('pointermove', handlePointerMove);
+        renderCanvas.addEventListener('pointerup', handlePointerUp);
+        renderCanvas.addEventListener('pointercancel', handlePointerUp);
+
+        function reapplyLocalCanvasDrawings() {
+            const context = renderCanvas.getContext('2d');
+            drawnLines.forEach(line => {
+                context.strokeStyle = line.color;
+                context.lineWidth = line.size;
+                context.lineCap = 'round';
+
+                context.lineJoin = 'round';
+                context.beginPath();
+                line.points.forEach((pt, idx) => {
+                    const cX = (pt.x / originalPageWidth) * renderCanvas.width;
+                    const cY = ((originalPageHeight - pt.y) / originalPageHeight) * renderCanvas.height;
+                    if (idx === 0) context.moveTo(cX, cY);
+                    else context.lineTo(cX, cY);
+                });
+                context.stroke();
+            });
+        }
+
+        btnSaveDraw.addEventListener('click', async () => {
+            if (drawnLines.length === 0) return;
+            toggleLoader(true, "Gravando traço estrutural...");
+            try {
+                const page = pdfDocInstance.getPages()[0];
+                drawnLines.forEach(line => {
+                    const r = parseInt(line.color.slice(1, 3), 16) / 255;
+
+                    const g = parseInt(line.color.slice(3, 5), 16) / 255;
+                    const b = parseInt(line.color.slice(5, 7), 16) / 255;
+                    const thickness = line.size * (originalPageWidth / renderCanvas.width);
+
+                    for (let i = 0; i < line.points.length - 1; i++) {
+                        page.drawLine({
+                            start: { x: line.points[i].x, y: line.points[i].y },
+                            end: { x: line.points[i+1].x, y: line.points[i+1].y },
+                            thickness: thickness,
+                            color: PDFLib.rgb(r, g, b)
+                        });
+                    }
+                });
+                drawnLines = [];
+                logAction("Traço fixado no documento");
+                await renderCurrentPdfPreview();
+                await captureAndPushWorkspaceState();
+                showMessage("Traçados gravados no arquivo!");
+            } catch(e) { console.error(e); } finally { toggleLoader(false); }
+
+        });
+
+        // SUBSTITUIÇÃO DE TEXTO EXISTENTE
+        btnReplaceText.addEventListener('click', async () => {
+            const newText = document.getElementById('edit-text-new').value.trim();
+            if (!newText) return;
+            toggleLoader(true, "Substituindo texto...");
+            try {
+                const page = pdfDocInstance.getPages()[0];
+                const maskWidth = parseFloat(document.getElementById('edit-mask-width').value) || 120;
+                
+                page.drawRectangle({
+                    x: lastCapturedPdfX - 2,
+                    y: lastCapturedPdfY - 2,
+                    width: maskWidth,
+                    height: 18,
+                    color: PDFLib.rgb(1, 1, 1)
+                });
+                page.drawText(newText, {
+
+                    x: lastCapturedPdfX,
+                    y: lastCapturedPdfY,
+                    size: 12,
+                    color: PDFLib.rgb(0, 0, 0)
+                });
+
+                logAction(`Texto alterado em X:${lastCapturedPdfX}`);
+                await renderCurrentPdfPreview();
+                await captureAndPushWorkspaceState();
+                document.getElementById('edit-text-new').value = "";
+                showMessage("Texto substituído!");
+            } catch (error) { console.error(error); } finally { toggleLoader(false); }
+        });
+
+        // MODAL DE DOWNLOAD
+        btnOpenDownloadModal.addEventListener('click', () => {
+            if(!pdfDocInstance) return;
+            downloadModal.classList.remove('hidden');
+        });
+
+
+        btnCloseModal.addEventListener('click', () => {
+            downloadModal.classList.add('hidden');
+        });
+
+        btnConfirmDownload.addEventListener('click', async () => {
+            let customName = inputFilenameModal.value.trim();
+            if(!customName) customName = "DIG_PRO_Editado";
+            
+            customName = customName.replace(/\.pdf$/i, "");
+            const finalFilename = `${customName}.pdf`;
+
+            downloadModal.classList.add('hidden');
+            toggleLoader(true, "Compilando e efetuando download direto...");
+            
+            try {
+                const pdfBytes = await pdfDocInstance.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                const link = document.createElement('a');
+
+                link.href = URL.createObjectURL(blob);
+                link.download = finalFilename;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                logAction(`Documento baixado como: ${finalFilename}`);
+                showMessage("Download realizado com sucesso!");
+            } catch (error) { 
+                console.error(error);
+                showMessage("Erro ao processar download físico.", true); 
+            } finally { toggleLoader(false); }
+        });
+    </script>
+</body>
+</html>
+
+
